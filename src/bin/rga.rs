@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use rga::adapters::custom::map_exe_error;
 use rga::adapters::*;
 use rga::config::{RgaConfig, split_args};
+use rga::integrated_search::IntegratedSearcher;
 use rga::matching::*;
 use rga::preproc::*;
 use rga::print_dur;
@@ -10,6 +11,7 @@ use structopt::StructOpt;
 
 use log::debug;
 use schemars::schema_for;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::Instant;
 use tokio::fs::File;
@@ -138,7 +140,7 @@ fn run_main() -> anyhow::Result<()> {
     if config.list_adapters {
         return list_adapters(config);
     }
-    if let Some(path) = config.fzf_path {
+    if let Some(ref path) = config.fzf_path {
         if path == "_" {
             // fzf found no result, ignore everything and return
             println!("[no file found]");
@@ -173,35 +175,65 @@ fn run_main() -> anyhow::Result<()> {
     add_exe_to_path()?;
 
     let rg_args = vec![
-        "--no-line-number",
+        "--no-line-number".to_string(),
         // smart case by default because within weird files
         // we probably can't really trust casing anyways
-        "--smart-case",
+        "--smart-case".to_string(),
     ];
 
-    let exe = std::env::current_exe().expect("Could not get executable location");
-    // Use the same executable for preprocessing with "preproc" subcommand
-    let preproc_exe = &exe;
-
     let before = Instant::now();
-    let mut cmd = Command::new("rg");
-    cmd.args(rg_args)
-        .arg("--pre")
-        .arg(preproc_exe)
-        .arg("--pre-glob")
-        .arg(pre_glob)
-        .args(passthrough_args)
-        .env("RGA_PREPROC_MODE", "1"); // Signal to child processes that they should run in preproc mode
-    log::debug!("rg command to run: {:?}", cmd);
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| map_exe_error(e, "rg", "Please make sure you have ripgrep installed."))?;
+    
+    // Create runtime for async preprocessing
+    let rt = tokio::runtime::Runtime::new()?;
+    
+    // Use integrated search instead of spawning rg subprocess
+    let searcher = IntegratedSearcher::new(config.clone(), adapters, pre_glob);
+    
+    // Parse pattern and paths from passthrough_args
+    let passthrough_strings: Vec<String> = passthrough_args
+        .iter()
+        .map(|os_str| os_str.to_string_lossy().into_owned())
+        .collect();
+    
+    // First non-flag argument is the pattern, rest are paths
+    let pattern_idx = passthrough_strings.iter().position(|arg| !arg.starts_with('-'));
+    
+    let (pattern, paths, additional_rg_args) = if let Some(idx) = pattern_idx {
+        let pattern = &passthrough_strings[idx];
+        let paths: Vec<PathBuf> = passthrough_strings[idx + 1..]
+            .iter()
+            .filter(|s| !s.starts_with('-'))
+            .map(PathBuf::from)
+            .collect();
+        
+        // Collect rg-specific flags
+        let mut flags: Vec<String> = passthrough_strings[..idx].to_vec();
+        flags.extend(
+            passthrough_strings[idx + 1..]
+                .iter()
+                .filter(|s| s.starts_with('-'))
+                .cloned()
+        );
+        flags.extend(rg_args.clone());
+        
+        (pattern.clone(), paths, flags)
+    } else {
+        // No pattern found, use first arg as pattern
+        if passthrough_strings.is_empty() {
+            anyhow::bail!("No pattern provided");
+        }
+        (passthrough_strings[0].clone(), vec![], rg_args)
+    };
 
-    let result = child.wait()?;
+    // Run the integrated search
+    let exit_code = rt.block_on(async {
+        searcher.run(&pattern, paths, &additional_rg_args)
+    })?;
 
-    log::debug!("running rg took {}", print_dur(before));
-    if !result.success() {
-        std::process::exit(result.code().unwrap_or(1));
+    log::debug!("running search took {}", print_dur(before));
+    
+    if exit_code != 0 {
+        std::process::exit(exit_code);
     }
     Ok(())
 }
