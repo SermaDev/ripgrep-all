@@ -1,6 +1,6 @@
 # rga: ripgrep, but also search in PDFs, E-Books, Office documents, zip, tar.gz, etc.
 
-rga is a line-oriented search tool that allows you to look for a regex in a multitude of file types. rga wraps the awesome [ripgrep] and enables it to search in pdf, docx, sqlite, jpg, movie subtitles (mkv, mp4), etc.
+rga is a line-oriented search tool that allows you to look for a regex in a multitude of file types. rga uses [ripgrep]'s regex engine and enables searching in pdf, docx, sqlite, jpg, movie subtitles (mkv, mp4), etc. As of version 0.10.10, ripgrep functionality is integrated directly into rga, requiring no external dependencies for core search functionality.
 
 [ripgrep]: https://github.com/BurntSushi/ripgrep
 
@@ -59,11 +59,11 @@ Linux x64, macOS and Windows binaries are available [in GitHub Releases][latestr
 
 download the [rga binary][latestrelease] and get the dependencies like this:
 
-`apt install ripgrep pandoc poppler-utils ffmpeg`
+`apt install pandoc poppler-utils ffmpeg`
 
-If ripgrep is not included in your package sources, get it from [here](https://github.com/BurntSushi/ripgrep/releases).
+Note: As of version 0.10.10, rga no longer requires the external `ripgrep` binary - search functionality is built-in!
 
-rga will search for all binaries it calls in \$PATH and the directory itself is in.
+rga will search for all binaries it calls (pandoc, pdftotext, ffmpeg, etc.) in \$PATH and the directory itself is in.
 
 ### Windows
 
@@ -104,7 +104,7 @@ To install the dependencies that are each not strictly necessary but very useful
 rga should compile with stable Rust (v1.75.0+, check with `rustc --version`). To build it, run the following (or the equivalent in your OS):
 
 ```
-~$ apt install build-essential pandoc poppler-utils ffmpeg ripgrep cargo
+~$ apt install build-essential pandoc poppler-utils ffmpeg cargo
 ~$ cargo install --locked ripgrep_all
 ~$ rga --version    # this should work now
 ```
