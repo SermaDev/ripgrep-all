@@ -227,7 +227,7 @@ fn run_main() -> anyhow::Result<()> {
 
     // Run the integrated search
     let exit_code = rt.block_on(async {
-        searcher.run(&pattern, paths, &additional_rg_args)
+        searcher.run_async(&pattern, paths, &additional_rg_args).await
     })?;
 
     log::debug!("running search took {}", print_dur(before));

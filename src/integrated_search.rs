@@ -8,7 +8,6 @@ use log::debug;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use termcolor::{ColorChoice, StandardStream};
-use tokio::runtime::Handle;
 
 use crate::adapters::*;
 use crate::config::RgaConfig;
@@ -30,7 +29,7 @@ impl IntegratedSearcher {
     }
 
     /// Run the integrated search with the given pattern and paths
-    pub fn run(
+    pub async fn run_async(
         &self,
         pattern: &str,
         paths: Vec<PathBuf>,
@@ -98,7 +97,7 @@ impl IntegratedSearcher {
                     }
                 } else {
                     // Preprocess the file inline and search the output
-                    if self.search_preprocessed_file(&matcher, &mut printer, file_path)? {
+                    if self.search_preprocessed_file_async(&matcher, &mut printer, file_path).await? {
                         found_match = true;
                     }
                 }
@@ -149,7 +148,7 @@ impl IntegratedSearcher {
     }
 
     /// Preprocess a file and search the preprocessed output
-    fn search_preprocessed_file(
+    async fn search_preprocessed_file_async(
         &self,
         matcher: &impl Matcher,
         printer: &mut grep_printer::Standard<StandardStream>,
@@ -157,13 +156,8 @@ impl IntegratedSearcher {
     ) -> Result<bool> {
         debug!("Preprocessing file: {}", path.display());
 
-        // Create a Tokio runtime handle for async preprocessing
-        let runtime_handle = Handle::current();
-
         // Run the preprocessing asynchronously
-        let preprocessed = runtime_handle.block_on(async {
-            self.preprocess_file_async(path).await
-        })?;
+        let preprocessed = self.preprocess_file_async(path).await?;
 
         // Search the preprocessed content
         let mut searcher = SearcherBuilder::new()
