@@ -223,8 +223,10 @@ impl IntegratedSearcher {
         let mut smart_case = true;  // Default to smart case
         let mut no_line_number = false;
         let mut color = ColorChoiceArg::Auto;
-
-        for arg in args {
+        
+        let mut i = 0;
+        while i < args.len() {
+            let arg = &args[i];
             match arg.as_str() {
                 "--smart-case" => smart_case = true,
                 "--case-sensitive" | "-s" => smart_case = false,
@@ -234,8 +236,21 @@ impl IntegratedSearcher {
                 "--color=always" => color = ColorChoiceArg::Always,
                 "--color=never" => color = ColorChoiceArg::Never,
                 "--color=auto" => color = ColorChoiceArg::Auto,
+                "--color" => {
+                    // Handle --color value format (two separate arguments)
+                    if i + 1 < args.len() {
+                        i += 1;
+                        match args[i].as_str() {
+                            "always" => color = ColorChoiceArg::Always,
+                            "never" => color = ColorChoiceArg::Never,
+                            "auto" => color = ColorChoiceArg::Auto,
+                            _ => {}
+                        }
+                    }
+                }
                 _ => {}
             }
+            i += 1;
         }
 
         (smart_case, no_line_number, color)
