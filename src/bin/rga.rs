@@ -65,12 +65,13 @@ fn get_invocation_mode() -> &'static str {
     let args: Vec<String> = std::env::args().collect();
     if !args.is_empty() {
         let argv0 = &args[0];
-        if argv0.contains("rga-preproc") {
-            return "preproc";
-        } else if argv0.contains("rga-fzf-open") {
+        // Check more specific patterns first to avoid substring matches
+        if argv0.contains("rga-fzf-open") {
             return "fzf-open";
         } else if argv0.contains("rga-fzf") {
             return "fzf";
+        } else if argv0.contains("rga-preproc") {
+            return "preproc";
         }
     }
 
