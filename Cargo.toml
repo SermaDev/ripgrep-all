@@ -37,6 +37,13 @@ encoding_rs = "0.8.32"
 encoding_rs_io = "0.1.7"
 env_logger = "0.10.0"
 glob = "0.3.1"
+# Ripgrep core libraries for integrated search
+grep = "0.3"
+grep-regex = "0.1"
+grep-matcher = "0.1"
+grep-searcher = "0.1"
+grep-printer = "0.1"
+ignore = "0.4"
 json_comments = "0.2.1"
 lazy_static = "1.4.0"
 log = "0.4.17"
@@ -48,6 +55,7 @@ paste = "1.0.12"
 path-clean = "1.0.1"
 pretty-bytes = "0.2.2"
 regex = "1.8.2"
+termcolor = "1.4"
 rusqlite = {version = "0.30.0", features = ["vtab", "bundled"]}
 schemars = {version = "0.8.12", features = ["preserve_order"]}
 serde = {version = "1.0.163", features = ["derive"]}

@@ -5,6 +5,7 @@ pub mod adapters;
 mod caching_writer;
 pub mod config;
 pub mod expand;
+pub mod integrated_search;
 pub mod matching;
 pub mod preproc;
 pub mod preproc_cache;
