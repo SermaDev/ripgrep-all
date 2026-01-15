@@ -168,10 +168,7 @@ jobs:
       - name: Strip release binary (macos)
         if: matrix.build == 'macos'
         run: |
-          strip "target/${{ matrix.target }}/release/rga" \
-            "target/${{ matrix.target }}/release/rga-preproc" \
-            "target/${{ matrix.target }}/release/rga-fzf" \
-            "target/${{ matrix.target }}/release/rga-fzf-open"
+          strip "target/${{ matrix.target }}/release/rga"
 
       - name: Strip release binary (linux)
         if: matrix.build == 'linux'
@@ -180,10 +177,7 @@ jobs:
             "$PWD/target:/target:Z" \
             "rustembedded/cross:${{ matrix.target }}" \
             "${{ matrix.strip }}" \
-            "/target/${{ matrix.target }}/release/rga" \
-            "/target/${{ matrix.target }}/release/rga-preproc" \
-            "/target/${{ matrix.target }}/release/rga-fzf" \
-            "/target/${{ matrix.target }}/release/rga-fzf-open"
+            "/target/${{ matrix.target }}/release/rga"
 
       - name: Build archive
         shell: bash
@@ -196,16 +190,10 @@ jobs:
 
           if [ "${{ matrix.build }}" = "win" ]; then
             cp "target/${{ matrix.target }}/release/rga.exe" "$staging/"
-            cp "target/${{ matrix.target }}/release/rga-preproc.exe" "$staging/"
-            cp "target/${{ matrix.target }}/release/rga-fzf.exe" "$staging/"
-            cp "target/${{ matrix.target }}/release/rga-fzf-open.exe" "$staging/"
             7z a "$staging.zip" "$staging"
             echo "ASSET=$staging.zip" >> $GITHUB_ENV
           else
             cp "target/${{ matrix.target }}/release/rga" "$staging/"
-            cp "target/${{ matrix.target }}/release/rga-preproc" "$staging/"
-            cp "target/${{ matrix.target }}/release/rga-fzf" "$staging/"
-            cp "target/${{ matrix.target }}/release/rga-fzf-open" "$staging/"
             tar czf "$staging.tar.gz" "$staging"
             echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
           fi
