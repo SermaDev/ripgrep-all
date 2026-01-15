@@ -36,7 +36,7 @@ impl IntegratedSearcher {
         rg_args: &[String],
     ) -> Result<i32> {
         // Parse additional rg arguments to extract flags
-        let (smart_case, _no_line_number, color_choice) = self.parse_rg_args(rg_args);
+        let (smart_case, no_line_number, color_choice) = self.parse_rg_args(rg_args);
 
         // Build the regex matcher
         let matcher = RegexMatcherBuilder::new()
@@ -57,7 +57,7 @@ impl IntegratedSearcher {
         // Set up the searcher
         let mut searcher = SearcherBuilder::new()
             .binary_detection(BinaryDetection::quit(b'\x00'))
-            .line_number(true)
+            .line_number(!no_line_number)
             .build();
 
         // Walk files and search
@@ -97,7 +97,7 @@ impl IntegratedSearcher {
                     }
                 } else {
                     // Preprocess the file inline and search the output
-                    if self.search_preprocessed_file_async(&matcher, &mut printer, file_path).await? {
+                    if self.search_preprocessed_file_async(&matcher, &mut printer, file_path, !no_line_number).await? {
                         found_match = true;
                     }
                 }
@@ -139,7 +139,12 @@ impl IntegratedSearcher {
         );
 
         match result {
-            Ok(_) => Ok(true),
+            Ok(_) => {
+                // For now, we assume if search succeeded without error, we found matches
+                // The printer will have already printed any matches
+                // TODO: Track actual match count for accurate exit codes
+                Ok(true)
+            }
             Err(err) => {
                 debug!("Error searching {}: {}", path.display(), err);
                 Ok(false)
@@ -153,6 +158,7 @@ impl IntegratedSearcher {
         matcher: &impl Matcher,
         printer: &mut grep_printer::Standard<StandardStream>,
         path: &Path,
+        line_numbers: bool,
     ) -> Result<bool> {
         debug!("Preprocessing file: {}", path.display());
 
@@ -162,7 +168,7 @@ impl IntegratedSearcher {
         // Search the preprocessed content
         let mut searcher = SearcherBuilder::new()
             .binary_detection(BinaryDetection::quit(b'\x00'))
-            .line_number(true)
+            .line_number(line_numbers)
             .build();
 
         let result = searcher.search_slice(
@@ -172,7 +178,11 @@ impl IntegratedSearcher {
         );
 
         match result {
-            Ok(_) => Ok(true),
+            Ok(_) => {
+                // For now, we assume if search succeeded without error, we found matches
+                // TODO: Track actual match count for accurate exit codes
+                Ok(true)
+            }
             Err(err) => {
                 debug!("Error searching preprocessed content for {}: {}", path.display(), err);
                 Ok(false)

@@ -195,39 +195,56 @@ fn run_main() -> anyhow::Result<()> {
         .map(|os_str| os_str.to_string_lossy().into_owned())
         .collect();
     
-    // First non-flag argument is the pattern, rest are paths
-    let pattern_idx = passthrough_strings.iter().position(|arg| !arg.starts_with('-'));
+    // Parse arguments properly, handling flags with values
+    // Known flags that take a value
+    let flags_with_values = [
+        "--color", "-e", "--regexp", "-g", "--glob", "--iglob",
+        "-t", "--type", "-T", "--type-not", "--max-count", "-m",
+        "-A", "--after-context", "-B", "--before-context", "-C", "--context",
+        "-E", "--encoding", "--max-filesize", "--path-separator",
+    ];
     
-    let (pattern, paths, additional_rg_args) = if let Some(idx) = pattern_idx {
-        let pattern = &passthrough_strings[idx];
-        let paths: Vec<PathBuf> = passthrough_strings[idx + 1..]
-            .iter()
-            .filter(|s| !s.starts_with('-'))
-            .map(PathBuf::from)
-            .collect();
+    let mut pattern: Option<String> = None;
+    let mut paths: Vec<PathBuf> = Vec::new();
+    let mut additional_rg_args: Vec<String> = Vec::new();
+    let mut i = 0;
+    
+    while i < passthrough_strings.len() {
+        let arg = &passthrough_strings[i];
         
-        // Collect rg-specific flags
-        let mut flags: Vec<String> = passthrough_strings[..idx].to_vec();
-        flags.extend(
-            passthrough_strings[idx + 1..]
-                .iter()
-                .filter(|s| s.starts_with('-'))
-                .cloned()
-        );
-        flags.extend(rg_args.clone());
-        
-        (pattern.clone(), paths, flags)
-    } else {
-        // No pattern found, use first arg as pattern
-        if passthrough_strings.is_empty() {
-            anyhow::bail!("No pattern provided");
+        if arg.starts_with('-') {
+            // This is a flag
+            additional_rg_args.push(arg.clone());
+            
+            // Check if this flag takes a value
+            let takes_value = flags_with_values.iter().any(|&flag| {
+                arg == flag || arg.starts_with(&format!("{}=", flag))
+            });
+            
+            if takes_value && !arg.contains('=') && i + 1 < passthrough_strings.len() {
+                // Next argument is the value for this flag
+                i += 1;
+                additional_rg_args.push(passthrough_strings[i].clone());
+            }
+        } else if pattern.is_none() {
+            // First non-flag argument is the pattern
+            pattern = Some(arg.clone());
+        } else {
+            // Subsequent non-flag arguments are paths
+            paths.push(PathBuf::from(arg));
         }
-        (passthrough_strings[0].clone(), vec![], rg_args)
-    };
+        
+        i += 1;
+    }
+    
+    let pattern = pattern.ok_or_else(|| anyhow::anyhow!("No pattern provided"))?;
+    // Prepend default rg_args so user's arguments can override them
+    let mut final_rg_args = rg_args.clone();
+    final_rg_args.extend(additional_rg_args);
 
     // Run the integrated search
     let exit_code = rt.block_on(async {
-        searcher.run_async(&pattern, paths, &additional_rg_args).await
+        searcher.run_async(&pattern, paths, &final_rg_args).await
     })?;
 
     log::debug!("running search took {}", print_dur(before));
